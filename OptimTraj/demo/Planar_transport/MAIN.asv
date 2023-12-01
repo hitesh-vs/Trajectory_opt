@@ -1,0 +1,205 @@
+% MAIN - Minimum Time Boundary Value Problem
+%
+% Solve a minimum-time boundary value problem with simple dynamics (chain
+% integrator) and limits on the state and control. Scalar trajectory.
+%
+% Here we will solve a scalar trajectory, where the position, velocity, 
+% and acceleration are states. The jerk (derivative of acceleration) will
+% be the only control.
+% 
+
+clc; clear;
+addpath ../../
+
+lp = 0.1; %length of plate
+wp = 4; %width of plate
+length = 0.5;
+width = 1;
+mu = 0.8; %Static friction co-efficient
+mass = 1; %Mass of block
+g = 10;
+% Kinematic Limits:
+xLim = [0, 1]; % x_position
+yLim = [0, 8]; %y_position
+vLim = [-4, 4]; % velocity
+aLim = [-3, 3]; % acceleration
+jLim = 5*[-2, 2]; % jerk 
+
+% Boundary value problem:
+xBegin = xLim(1);
+yBegin = yLim(1); % initial state
+vBegin = 0;
+aBegin = 0;
+xFinal = xLim(2);
+yFinal = yLim(2); % final state
+vFinal = 0;
+aFinal = 0;
+%% Problem in x direction
+
+% Solving a 2 dimension planar transportation problem can be simplified
+% into solving two independent perpendicular linear motions
+
+% User-defined dynamics and objective functions
+problem1.func.dynamics = @(t,x,u)( scalarChainIntegrator(x,u) );
+problem1.func.bndObj = @(t0,x0,tF,xF)( tF - t0 ); % minimum time  -- primary objective
+problem1.func.pathObj = @(t,x,u)( 0.001*u.^2 ); %minimum jerk  -- regularization
+
+% Problem boundsTime
+problem1.bounds.initialTime.low = 0;
+problem1.bounds.initialTime.upp = 0;
+problem1.bounds.finalTime.low = 0.1;
+problem1.bounds.finalTime.upp = 10;
+
+problem1.bounds.state.low = [xLim(1); vLim(1); aLim(1)];
+problem1.bounds.state.upp = [xLim(2); vLim(2); aLim(2)];
+problem1.bounds.initialState.low = [xBegin; vBegin; aBegin];
+problem1.bounds.initialState.upp = [xBegin; vBegin; aBegin];
+problem1.bounds.finalState.low = [xFinal; vFinal; aFinal];
+problem1.bounds.finalState.upp = [xFinal; vFinal; aFinal];
+
+problem1.bounds.control.low = jLim(1);
+problem1.bounds.control.upp = jLim(2); 
+
+% Guess at the initial trajectory
+problem1.guess.time = [0,2];
+problem1.guess.state = [[xBegin; vBegin; aBegin], [xFinal; vFinal; aFinal]];
+problem1.guess.control = [0, 0];
+
+% Select a solver:
+problem1.options(1).method = 'trapezoid';
+problem1.options(1).trapezoid.nGrid = 8;
+problem1.options(2).method = 'trapezoid';
+problem1.options(2).trapezoid.nGrid = 16;
+problem1.options(3).method = 'hermiteSimpson';
+problem1.options(3).hermiteSimpson.nSegment = 15;
+
+% Solve the problem
+solnx = optimTraj(problem1);
+t = solnx(end).grid.time;
+q = solnx(end).grid.state(1,:);
+dq = solnx(end).grid.state(2,:);
+ddq = solnx(end).grid.state(3,:);
+u = solnx(end).grid.control;
+
+%TODO: Make graphs of each iteration (error plots and interpolation plots)
+
+%% Problem in y direction
+
+problem2.func.dynamics = @(t,x,u)( scalarChainIntegrator(x,u) );
+problem2.func.bndObj = @(t0,x0,tF,xF)( tF - t0 ); % minimum time  -- primary objective
+problem2.func.pathObj = @(t,x,u)( 0.001*u.^2 ); %minimum jerk  -- regularization
+
+% Problem boundsTime
+problem2.bounds.initialTime.low = 0;
+problem2.bounds.initialTime.upp = 0;
+problem2.bounds.finalTime.low = 0.1;
+problem2.bounds.finalTime.upp = 10;
+
+problem2.bounds.state.low = [yLim(1); vLim(1); aLim(1)];
+problem2.bounds.state.upp = [yLim(2); vLim(2); aLim(2)];
+problem2.bounds.initialState.low = [yBegin; vBegin; aBegin];
+problem2.bounds.initialState.upp = [yBegin; vBegin; aBegin];
+problem2.bounds.finalState.low = [yFinal; vFinal; aFinal];
+problem2.bounds.finalState.upp = [yFinal; vFinal; aFinal];
+
+problem2.bounds.control.low = jLim(1);
+problem2.bounds.control.upp = jLim(2); 
+
+% Guess at the initial trajectory
+problem2.guess.time = [0,2];
+problem2.guess.state = [[yBegin; vBegin; aBegin], [yFinal; vFinal; aFinal]];
+problem2.guess.control = [0, 0];
+
+% Select a solver:
+problem2.options(1).method = 'trapezoid';
+problem2.options(1).trapezoid.nGrid = 8;
+problem2.options(2).method = 'trapezoid';
+problem2.options(2).trapezoid.nGrid = 16;
+problem2.options(3).method = 'hermiteSimpson';
+problem2.options(3).hermiteSimpson.nSegment = 15;
+
+% Solve the problem
+solny = optimTraj(problem2);
+ty = solny(end).grid.time;
+qy = solny(end).grid.state(1,:);
+dqy = solny(end).grid.state(2,:);
+ddqy = solny(end).grid.state(3,:);
+uy = solny(end).grid.control;
+
+
+
+%% Animation and plots
+figure;
+for i = 1:size(t,2)
+    clf; hold on;
+    
+    % Plot the block
+    rectangle('Position', [q(i), -length/2, width, length], 'FaceColor', 'b');
+    hold on;
+%     plot([-10, 10], [0, 0], 'k-'); % Adjust the range as needed
+    rectangle('Position', [q(i)+(width-wp)/2, -(length/2)-lp, wp, lp], 'FaceColor', 'k');
+    hold on;
+    % Set axis limits and labels
+    axis([xBegin-1, xBegin+10, -5.5, 5.5]);
+    xlabel('Position (m)');
+    axis off;
+    title('Rectangular Block Dynamics');
+    
+    % Pause to control animation speed
+    pause(0.05);
+end
+figure;
+rectangle('Position', [q(i), -length/2, width, length], 'FaceColor', 'b');
+    hold on;
+%     plot([-10, 10], [0, 0], 'k-'); % Adjust the range as needed
+    rectangle('Position', [q(i)+(width-wp)/2, -(length/2)-lp, wp, lp], 'FaceColor', 'k');
+    hold on;
+    % Set axis limits and labels
+    axis([xBegin-1, xBegin+10, -5.5, 5.5]);
+    xlabel('Position (m)');
+    axis off;
+
+% Plot the solution:
+figure(1); 
+
+subplot(4,1,1)
+plot(t,q)
+ylabel('q')
+title('Minimum-time boundary value problem');
+
+subplot(4,1,2)
+plot(t,dq)
+ylabel('dq')
+
+subplot(4,1,3)
+plot(t,ddq)
+ylabel('ddq')
+
+subplot(4,1,4)
+plot(t,u)
+ylabel('dddq')
+
+figure(2);
+
+subplot(4,1,1)
+plot(ty,qy)
+ylabel('q')
+title('Minimum-time boundary value problem');
+
+subplot(4,1,2)
+plot(ty,dqy)
+ylabel('dq')
+
+subplot(4,1,3)
+plot(ty,ddqy)
+ylabel('ddq')
+
+subplot(4,1,4)
+plot(ty,uy)
+ylabel('dddq')
+
+figure(3);
+
+plot(q,qy)
+ylabel('y')
+xlabel('x')

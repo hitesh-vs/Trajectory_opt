@@ -1,0 +1,51 @@
+% Define manipulator parameters
+L1 = 2; % Length of the first link
+L2 = 1.5; % Length of the second link
+lp = 0.1;
+wp = 1;
+
+% Number of time steps and time vector
+num_steps = 100;
+t = linspace(0, 10, num_steps); % You can adjust the time range as needed
+
+% Initialize joint angles (q) and their derivatives (dq)
+q = zeros(2, num_steps);
+dq = zeros(2, num_steps);
+
+% Calculate joint angles and their derivatives (example: sinusoidal motion)
+q(1,:) = sin(2*pi*t/10);
+q(2,:) = cos(2*pi*t/10);
+dq(1,:) = (2*pi/10) * cos(2*pi*t/10);
+dq(2,:) = -(2*pi/10) * sin(2*pi*t/10);
+
+% Initialize figure for animation
+figure;
+axis([-3, 3, -3, 3]);
+axis equal;
+xlabel('X-axis');
+ylabel('Y-axis');
+title('2R Planar Manipulator Animation');
+
+for i = 1:num_steps
+    % Forward Kinematics
+    x1 = L1 * cos(q(1, i));
+    y1 = L1 * sin(q(1, i));
+    x2 = x1 + L2 * cos(q(1, i) + q(2, i));
+    y2 = y1 + L2 * sin(q(1, i) + q(2, i));
+    
+    % Plot manipulator
+    plot([0, x1, x2], [0, y1, y2], 'r', 'LineWidth', 5);
+    hold on;
+    plot(x2, y2, 'bo', 'MarkerSize', 1, 'MarkerFaceColor', 'b');
+    hold on;
+    rectangle('Position', [x2-wp/2, y2, wp, lp], 'FaceColor', 'k');
+    hold off;
+    
+    axis([-5, 5, -5, 5]);
+    
+    % Update plot
+    drawnow;
+    
+    % Pause for animation smoothness (you can adjust the pause duration)
+    pause(0.1);
+end
